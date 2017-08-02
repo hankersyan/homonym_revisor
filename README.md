@@ -28,3 +28,4 @@ homonym_revisor
 		
 		// 校正结果
 		final String revised = revisor.revise(origin);
+		// .病人的血样饱和度是64%,上，可能是唐氏中合镇危险了! => .病人的血氧饱和度是64%,上，可能是唐氏综合症危险了!
