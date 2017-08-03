@@ -1,5 +1,9 @@
 package cn.hankers.nl;
 
+import java.io.BufferedReader;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -21,21 +25,54 @@ public class HomonymRevisor {
 
 	public static void main(String[] args) {
 
-		// ◊º±∏––“µ¥ µ‰
+		// ÂáÜÂ§áË°å‰∏öËØçÂÖ∏
 		TreeMap<String, String> map = new TreeMap<String, String>();
-		map.put("abakawei", "∞¢∞Õø®Œ§");
-		map.put("abeiaiershishoushu", "∞¢±¥∞£∂˛ œ ÷ ı");
-		map.put("abendazuo", "∞¢±Ω¥ÔﬂÚ");
-		map.put("aerrezuerxuehongdanbai", "∞¢∂˚»»◊Ê∂˚—™∫Ïµ∞∞◊");
-		map.put("xueyangbaohedu", "—™—ı±•∫Õ∂»");
-		map.put("tangshizonghezheng", "Ã∆ œ◊€∫œ÷¢");
+		
+		long time0 = System.currentTimeMillis();
+		
+		BufferedReader br = null;
+		try {
+			br = new BufferedReader(new FileReader("med.txt"));
+			
+		    String line = br.readLine();
+		    int comma = 0;
+		    while (line != null) {
+		    	comma = line.indexOf(',');
+		    	if(comma > 0 && comma < line.length()) {
+		    		map.put(line.substring(0,  comma), line.substring(comma + 1));
+		    	}
+		        line = br.readLine();
+		    }
+		} catch (FileNotFoundException ex) {
+			ex.printStackTrace();
+		} catch (IOException ex) {
+			ex.printStackTrace();
+		} finally {
+		    try {
+				br.close();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+		
+		long time1 = System.currentTimeMillis();
+		log(TAG, map.size() + " rows loaded, elapsed milliseconds=" + (time1 - time0) );
+		
+//		map.put("abakawei", "ÈòøÂ∑¥Âç°Èü¶");
+//		map.put("abeiaiershishoushu", "ÈòøË¥ùÂüÉ‰∫åÊ∞èÊâãÊúØ");
+//		map.put("abendazuo", "ÈòøËãØËææÂîë");
+//		map.put("aerrezuerxuehongdanbai", "ÈòøÂ∞îÁÉ≠Á•ñÂ∞îË°ÄÁ∫¢ËõãÁôΩ");
+//		map.put("xueyangbaohedu", "Ë°ÄÊ∞ßÈ•±ÂíåÂ∫¶");
+//		map.put("tangshizonghezheng", "ÂîêÊ∞èÁªºÂêàÁóá");
 
-		// ∫¨¥Ìæ‰◊”
-		final String origin = ".≤°»Àµƒ—™—˘±•∫Õ∂» «64%,…œ£¨ø…ƒ‹ «Ã∆ œ÷–∫œ’ÚŒ£œ’¡À!";
+		// Âê´ÈîôÂè•Â≠ê
+		final String origin = ".ÁóÖ‰∫∫ÁöÑË°ÄÊ†∑È•±ÂíåÂ∫¶ÊòØ64%,‰∏äÔºåÂèØËÉΩÊòØÂîêÊ∞è‰∏≠ÂêàÈïáÂç±Èô©‰∫Ü!";
 
 		HomonymRevisor revisor = new HomonymRevisor(map, true);
 		
-		// –£’˝Ω·π˚
+		log(TAG, "HomonymRevisor inited, elapsed milliseconds=" + (System.currentTimeMillis() - time1) );
+		
+		// Ê†°Ê≠£ÁªìÊûú
 		final String revised = revisor.revise(origin);
 
 		log(TAG, origin + "=>" + revised);
@@ -51,7 +88,9 @@ public class HomonymRevisor {
 
 	public HomonymRevisor(Map<String, String> dict, boolean fuzzyEnabled) {
 		_bFuzzyEnabled = fuzzyEnabled;
-
+		
+		ArrayList<String> conflicts = new ArrayList<>();
+		
 		TreeMap<String, String> map = new TreeMap<String, String>();
 		for (Map.Entry<String, String> entry : dict.entrySet()) {
 			String key = entry.getKey();
@@ -60,7 +99,16 @@ public class HomonymRevisor {
 			if (!map.containsKey(calcuatedPy)) {
 				map.put(calcuatedPy, val);
 			} else {
-				log(TAG, "conflict item found:" + calcuatedPy + " for " + val);
+				log(TAG, "conflict found:" + calcuatedPy + " for " + val + " => " + map.get(calcuatedPy));
+				conflicts.add(calcuatedPy);
+			}
+		}
+		
+		if(conflicts.size() > 0) {
+			log(TAG, "Both of the conflicts will NOT work!");
+			log(TAG, "Please REMOVE the conflict from your library!");
+			for(String key : conflicts) {
+				map.remove(key);
 			}
 		}
 
@@ -175,7 +223,7 @@ public class HomonymRevisor {
 			for (char c : origin.toCharArray()) {
 				String[] pinyinArray = PinyinHelper.toHanyuPinyinStringArray(c, outputFormat);
 				if (pinyinArray != null) {
-					String calcutedPy = calcFuzzyPinYinForCharacter(pinyinArray[0]);
+					String calcutedPy = calcFuzzyPinYinForWord(pinyinArray[0]);
 					pyLengthList[idx] = calcutedPy.length();
 					pyList[idx] = calcutedPy;
 					builder.append(calcutedPy);
@@ -245,14 +293,14 @@ public class HomonymRevisor {
 		StringBuilder builder = new StringBuilder();
 
 		for (String itm : list) {
-			String temp = calcFuzzyPinYinForCharacter(itm);
+			String temp = calcFuzzyPinYinForWord(itm);
 			builder.append(temp);
 		}
 
 		return builder.toString();
 	}
 
-	private String calcFuzzyPinYinForCharacter(String pinyin) {
+	private String calcFuzzyPinYinForWord(String pinyin) {
 		if (!_bFuzzyEnabled)
 			return pinyin;
 
@@ -272,13 +320,19 @@ public class HomonymRevisor {
 			temp = "f" + temp.substring(1);
 		}
 
-		if (temp.endsWith("iang")) {
-			temp = temp.substring(0, temp.length() - 4) + "ian";
-		} else if (temp.endsWith("uang")) {
-			temp = temp.substring(0, temp.length() - 4) + "uan";
-		} else if (temp.endsWith("ang")) {
-			temp = temp.substring(0, temp.length() - 3) + "an";
-		} else if (temp.endsWith("eng")) {
+//		if (temp.endsWith("iang")) {
+//			temp = temp.substring(0, temp.length() - 4) + "ian";
+//		} else if (temp.endsWith("uang")) {
+//			temp = temp.substring(0, temp.length() - 4) + "uan";
+//		} else if (temp.endsWith("ang")) {
+//			temp = temp.substring(0, temp.length() - 3) + "an";
+//		} else if (temp.endsWith("eng")) {
+//			temp = temp.substring(0, temp.length() - 3) + "en";
+//		} else if (temp.endsWith("ing")) {
+//			temp = temp.substring(0, temp.length() - 3) + "in";
+//		}
+		
+		if (temp.endsWith("eng")) {
 			temp = temp.substring(0, temp.length() - 3) + "en";
 		} else if (temp.endsWith("ing")) {
 			temp = temp.substring(0, temp.length() - 3) + "in";
